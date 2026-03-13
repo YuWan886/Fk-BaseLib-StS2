@@ -22,6 +22,7 @@ public abstract class CustomCardModel : CardModel, ICustomModel
     }
 
     public virtual Texture2D? CustomFrame => null;
+    public virtual string? CustomPortraitPath => null;
 }
 
 [HarmonyPatch(typeof(CardModel), nameof(CardModel.Frame), MethodType.Getter)]
@@ -42,5 +43,18 @@ class CustomCardFrame
             }
         }
         return true;
+    }
+}
+
+[HarmonyPatch(typeof(CardModel), "PortraitPngPath", MethodType.Getter)]
+class CustomCardPortraitPath
+{
+    [HarmonyPrefix]
+    static bool UseAltTexture(CardModel __instance, ref string? __result)
+    {
+        if (__instance is not CustomCardModel customCard) return true;
+        
+        __result = customCard.CustomPortraitPath;
+        return __result == null;
     }
 }

@@ -1,6 +1,7 @@
 using System.Reflection;
 using BaseLib.Abstracts;
 using BaseLib.Extensions;
+using BaseLib.Patches.UI;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Helpers;
@@ -19,9 +20,35 @@ public sealed class CustomEnumAttribute(string? name = null) : Attribute
     public string? Name { get; } = name;
 }
 
+/// <summary>
+/// Marks a CardKeyword field as having additional keyword properties. This is not required to create a keyword,
+/// only if you want to use the additional features added by this.
+/// </summary>
+/// <param name="position">The keyword's localized title will automatically be added to the specified position in the card's description for cards with the keyword.</param>
+[AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+public sealed class KeywordPropertiesAttribute(AutoKeywordPosition position) : Attribute
+{
+    public AutoKeywordPosition Position { get; } = position;
+}
+
+public enum AutoKeywordPosition
+{
+    None,
+    Before,
+    After
+}
+
 public static class CustomKeywords
 {
-    public static readonly Dictionary<int, string> KeywordIDs = [];
+    public static readonly Dictionary<int, KeywordInfo> KeywordIDs = [];
+
+    public readonly struct KeywordInfo(string key, AutoKeywordPosition autoPosition)
+    {
+        public readonly string Key = key;
+        public readonly AutoKeywordPosition AutoPosition = autoPosition;
+
+        public static implicit operator string(KeywordInfo info) => info.Key;
+    }
 
     //Support auto-text application through a patch in CardModel.GetDescriptionForPile, CardKeywordOrder
 }
@@ -103,9 +130,13 @@ class GetCustomLocKey
         harmony.Patch(originalMethod, prefix: new HarmonyMethod(prefix));
     }
 
-    static bool UseCustomKeywordMap(CardKeyword keyword, ref string? __result)
+    private static bool UseCustomKeywordMap(CardKeyword keyword, ref string? __result)
     {
-        return !CustomKeywords.KeywordIDs.TryGetValue((int) keyword, out __result);
+        if (!CustomKeywords.KeywordIDs.TryGetValue((int)keyword, out var keywordInfo)) return true;
+        
+        __result = keywordInfo.Key;
+        return false;
+
     }
 }
 
@@ -145,7 +176,20 @@ class GenEnumValues
                 if (field.FieldType == typeof(CardKeyword))
                 {
                     var keywordId = field.DeclaringType.GetPrefix() + (keywordInfo?.Name ?? field.Name).ToUpperInvariant();
-                    CustomKeywords.KeywordIDs.Add((int) key, keywordId);
+                    var poolAttribute = field.GetCustomAttribute<KeywordPropertiesAttribute>();
+                    var autoPosition = poolAttribute?.Position ?? AutoKeywordPosition.None;
+
+                    switch (autoPosition)
+                    {
+                        case AutoKeywordPosition.Before:
+                            AutoKeywordText.AdditionalBeforeKeywords.Add((CardKeyword) key);
+                            break;
+                        case AutoKeywordPosition.After:
+                            AutoKeywordText.AdditionalAfterKeywords.Add((CardKeyword) key);
+                            break;
+                    }
+                    
+                    CustomKeywords.KeywordIDs.Add((int) key, new(keywordId, autoPosition));
                 }
 
                 if (field.FieldType != typeof(PileType)) continue;

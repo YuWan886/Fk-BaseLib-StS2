@@ -1,5 +1,5 @@
-using BaseLib.Patches;
 using BaseLib.Patches.Content;
+using BaseLib.Patches.UI;
 using BaseLib.Utils;
 using Godot;
 using HarmonyLib;
@@ -47,7 +47,15 @@ public abstract class CustomCardPoolModel : CardPoolModel, ICustomModel, ICustom
 
     public virtual bool IsShared => false;
 
+    /// <summary>
+    /// Override this to load a custom tres from `images/atlases/ui_atlas.sprites/card/energy_{EnergyColorName}.tres`
+    /// Otherwise, override BigEnergyIconPath and TextEnergyIconPath.
+    /// </summary>
     public override string EnergyColorName => CustomEnergyIconPatches.GetEnergyColorName(Id);
+    
+    /// <summary>
+    /// Override and provide a .tres or .png or similar
+    /// </summary>
     public virtual string? BigEnergyIconPath => null;
     public virtual string? TextEnergyIconPath => null;
 }

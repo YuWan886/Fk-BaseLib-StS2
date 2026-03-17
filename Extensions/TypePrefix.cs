@@ -13,7 +13,6 @@ public static class TypePrefix
         return $"{t.Namespace[..dotIndex].ToUpperInvariant()}{PrefixSplitChar}";
     }
     
-    //return $"{t.GetRootNamespace().ToUpperInvariant()}{PrefixSplitChar}";
     public static string GetRootNamespace(this Type t)
     {
         if (t.Namespace == null)

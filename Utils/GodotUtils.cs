@@ -18,7 +18,6 @@ public static class GodotUtils
         
         var visualsNode = new NCreatureVisuals();
         TransferNodes(visualsNode, n, "Visuals", "Bounds", "IntentPos", "CenterPos", "OrbPos", "TalkPos");
-
         return visualsNode;
     }
 
@@ -36,6 +35,11 @@ public static class GodotUtils
     private static void TransferNodes(Node target, Node source, bool uniqueNames, params string[] names)
     {
         target.Name = source.Name;
+
+        /*if (target is Control targetControl && source is Control sourceControl)
+        {
+            transfer node properties?
+        }*/
 
         List<string> requiredNames = [.. names];
         foreach (var child in source.GetChildren())

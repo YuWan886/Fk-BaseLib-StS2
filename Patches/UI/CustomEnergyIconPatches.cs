@@ -5,7 +5,7 @@ using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Localization.Formatters;
 using MegaCrit.Sts2.Core.Models;
 
-namespace BaseLib.Patches.Content;
+namespace BaseLib.Patches.UI;
 
 public class CustomEnergyIconPatches {
     public const char Delimiter = '∴';
@@ -17,7 +17,7 @@ public class CustomEnergyIconPatches {
             int index = prefix.IndexOf(Delimiter);
             if (index < 0) return true;
             AbstractModel model = ModelDb.GetById<AbstractModel>(new(prefix[..index], prefix[(index+1)..]));
-            if (model is not ICustomEnergyIconPool custom || custom.BigEnergyIconPath is not string path) return true;
+            if (model is not ICustomEnergyIconPool { BigEnergyIconPath: string path }) return true;
             __result = path;
             return false;
         }
@@ -44,7 +44,7 @@ public class CustomEnergyIconPatches {
         int index = prefix.IndexOf(Delimiter);
         if (index < 0) return oldText;
         AbstractModel model = ModelDb.GetById<AbstractModel>(new(prefix[..index], prefix[(index+1)..]));
-        if (model is not ICustomEnergyIconPool custom || custom.TextEnergyIconPath is not string path) return oldText;
+        if (model is not ICustomEnergyIconPool { TextEnergyIconPath: string path }) return oldText;
         return $"[img]{path}[/img]";
     }
 }

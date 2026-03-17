@@ -1,7 +1,6 @@
 using MegaCrit.Sts2.Core.Models;
-using System.Collections.Generic;
-using BaseLib.Patches;
 using BaseLib.Patches.Content;
+using BaseLib.Patches.UI;
 
 namespace BaseLib.Abstracts;
 

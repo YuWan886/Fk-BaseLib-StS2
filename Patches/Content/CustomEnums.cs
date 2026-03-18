@@ -150,6 +150,7 @@ class GenEnumValues
     [HarmonyPrefix]
     static void FindAndGenerate()
     {
+        List<FieldInfo> customEnumFields = [];
         foreach (var t in ReflectionHelper.ModTypes)
         {
             var fields = t.GetFields().Where(field => Attribute.IsDefined(field, typeof(CustomEnumAttribute)));
@@ -158,50 +159,68 @@ class GenEnumValues
             {
                 if (!field.FieldType.IsEnum)
                 {
-                    throw new Exception($"Field {field.DeclaringType?.FullName}.{field.Name} should be an enum type for CustomEnum");
+                    throw new Exception(
+                        $"Field {field.DeclaringType?.FullName}.{field.Name} should be an enum type for CustomEnum");
                 }
+
                 if (!field.IsStatic)
                 {
-                    throw new Exception($"Field {field.DeclaringType?.FullName}.{field.Name} should be static for CustomEnum");
+                    throw new Exception(
+                        $"Field {field.DeclaringType?.FullName}.{field.Name} should be static for CustomEnum");
                 }
+
                 if (field.DeclaringType == null)
                 {
                     continue;
                 }
 
-                var keywordInfo = field.GetCustomAttribute<CustomEnumAttribute>();
-                var key = CustomEnums.GenerateKey(field.FieldType);
-                field.SetValue(null, key);
-
-                if (field.FieldType == typeof(CardKeyword))
-                {
-                    var keywordId = field.DeclaringType.GetPrefix() + (keywordInfo?.Name ?? field.Name).ToUpperInvariant();
-                    var poolAttribute = field.GetCustomAttribute<KeywordPropertiesAttribute>();
-                    var autoPosition = poolAttribute?.Position ?? AutoKeywordPosition.None;
-
-                    switch (autoPosition)
-                    {
-                        case AutoKeywordPosition.Before:
-                            AutoKeywordText.AdditionalBeforeKeywords.Add((CardKeyword) key);
-                            break;
-                        case AutoKeywordPosition.After:
-                            AutoKeywordText.AdditionalAfterKeywords.Add((CardKeyword) key);
-                            break;
-                    }
-                    
-                    CustomKeywords.KeywordIDs.Add((int) key, new(keywordId, autoPosition));
-                }
-
-                if (field.FieldType != typeof(PileType)) continue;
-                if (!t.IsAssignableTo(typeof(CustomPile))) continue;
-                
-                var constructor = t.GetConstructor(BindingFlags.Instance | BindingFlags.Public, []) ?? throw new Exception($"CustomPile {t.FullName} with custom PileType does not have an accessible no-parameter constructor");
-                
-                var pileType = (PileType?)field.GetValue(null);
-                if (pileType == null) throw new Exception($"Failed to be set up custom PileType in {t.FullName}");
-                
-                CustomPiles.RegisterCustomPile((PileType) pileType, () => (CustomPile) constructor.Invoke(null));
+                customEnumFields.Add(field);
             }
+        }
+        
+        customEnumFields.Sort((a, b) =>
+        {
+            var comparison = string.Compare(a.Name, b.Name, StringComparison.Ordinal);
+            return comparison != 0 ? comparison : string.Compare(a.DeclaringType?.Name, b.DeclaringType?.Name, StringComparison.Ordinal);
+        });
+
+        foreach (var field in customEnumFields)
+        {
+            var keywordInfo = field.GetCustomAttribute<CustomEnumAttribute>();
+            var key = CustomEnums.GenerateKey(field.FieldType);
+            field.SetValue(null, key);
+
+            if (field.FieldType == typeof(CardKeyword))
+            {
+                var keywordId = field.DeclaringType.GetPrefix() + (keywordInfo?.Name ?? field.Name).ToUpperInvariant();
+                var poolAttribute = field.GetCustomAttribute<KeywordPropertiesAttribute>();
+                var autoPosition = poolAttribute?.Position ?? AutoKeywordPosition.None;
+
+                switch (autoPosition)
+                {
+                    case AutoKeywordPosition.Before:
+                        AutoKeywordText.AdditionalBeforeKeywords.Add((CardKeyword) key);
+                        break;
+                    case AutoKeywordPosition.After:
+                        AutoKeywordText.AdditionalAfterKeywords.Add((CardKeyword) key);
+                        break;
+                }
+                    
+                CustomKeywords.KeywordIDs.Add((int) key, new(keywordId, autoPosition));
+                continue;
+            }
+            
+            //Following code is exclusively for CustomPile
+            if (field.FieldType != typeof(PileType)) continue;
+            var t = field.DeclaringType;
+            if (t == null || !t.IsAssignableTo(typeof(CustomPile))) continue; 
+                
+            var constructor = t.GetConstructor(BindingFlags.Instance | BindingFlags.Public, []) ?? throw new Exception($"CustomPile {t.FullName} with custom PileType does not have an accessible no-parameter constructor");
+                
+            var pileType = (PileType?)field.GetValue(null);
+            if (pileType == null) throw new Exception($"Failed to be set up custom PileType in {t.FullName}");
+                
+            CustomPiles.RegisterCustomPile((PileType) pileType, () => (CustomPile) constructor.Invoke(null));
         }
     }
 }

@@ -19,6 +19,11 @@ namespace BaseLib.Config;
 public abstract partial class ModConfig
 {
     private const string SettingsTheme = "res://themes/settings_screen_line_header.tres";
+
+    /// <summary>
+    /// Event that fires when <see cref="Changed()"/> is called. Custom controls must call Changed() when mutating
+    /// a property.
+    /// </summary>
     public event EventHandler? ConfigChanged;
 
     private readonly string _path;
@@ -305,7 +310,12 @@ public abstract partial class ModConfig
                 }
                 ++count;
                 var loc = LocString.GetIfExists("settings_ui", $"{ModPrefix}{StringHelper.Slugify(property.Name)}.{value}");
-                items.Add(new(loc?.GetRawText() ?? value?.ToString() ?? "UNKNOWN", () => property.SetValue(null, value)));
+                var label = loc?.GetRawText() ?? value?.ToString() ?? "UNKNOWN";
+                items.Add(new (label, () =>
+                {
+                    property.SetValue(null, value);
+                    Changed();
+                }));
             }
         }
         else //Check for dropdown options attribute

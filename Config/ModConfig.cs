@@ -38,6 +38,7 @@ public abstract partial class ModConfig
     /// </summary>
     public event EventHandler? ConfigChanged;
     public event Action? OnConfigReloaded;
+    public void ConfigReloaded() => OnConfigReloaded?.Invoke();
 
     private readonly string _path;
     public string ModPrefix { get; private set; }

@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics;
+using System.Reflection;
 using BaseLib.Config.UI;
 using Godot;
 using MegaCrit.Sts2.Core.Localization;
@@ -155,8 +156,81 @@ public class SimpleModConfig : ModConfig
         else if (propertyType.IsEnum) optionRow = CreateDropdownOption(property);
         else throw new NotSupportedException($"Type {propertyType.FullName} is not supported by SimpleModConfig.");
 
+        AddHoverTipToOptionRowIfEnabled(optionRow, property);
+
+        return optionRow;
+    }
+
+    /// <summary>
+    /// Auto-generates a button row from a method marked with [ConfigButton], including a hover tip if [ConfigHoverTip]
+    /// is specified.<br/>
+    /// Methods with [ConfigHideinUI] will NOT be ignored, so you can use this to manually create buttons for them
+    /// if you wish.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Thrown if [ConfigButton] is missing.</exception>
+    protected NConfigOptionRow GenerateButtonRowFromMethod(MethodInfo method)
+    {
+        var attr = method.GetCustomAttribute<ConfigButtonAttribute>() ?? throw new ArgumentException(
+            $"GenerateOptionFromMethod called on {method.Name} but it lacks a [ConfigButton] attribute.");
+
+        // Validate the arguments early, or the exception won't occur until you click the button.
+        // Will throw for invalid arguments.
+        foreach (var param in method.GetParameters())
+            ResolveButtonArgument(param, null!);
+
+        // optionRow must be declared before buttonAction since it's captured by the closure,
+        // but it won't be read until the button is clicked, so this is null safe
+        NConfigOptionRow optionRow = null!;
+
+        // ReSharper disable once ConvertToLocalFunction
+        var onButtonClicked = () =>
+        {
+            try
+            {
+                // Like Harmony, we figure out the arguments to pass based on the method's parameter types
+                var args = method.GetParameters()
+                    .Select(param => ResolveButtonArgument(param, optionRow))
+                    .ToArray();
+
+                method.Invoke(method.IsStatic ? null : this, args);
+            }
+            catch (Exception e)
+            {
+                MainFile.Logger.Error($"Error executing [ConfigButton] method {method.Name}: {e.Message}");
+
+                // no return; we still need to call ConfigReloaded in case the method changed something
+            }
+
+            // Ensure controls are up-to-date in case the button modified some property values
+            ConfigReloaded();
+            ShowAndClearPendingErrors();
+        };
+
+        optionRow = CreateButton(method.Name, attr.ButtonLabelKey, onButtonClicked, true);
+        AddHoverTipToOptionRowIfEnabled(optionRow, method);
+        return optionRow;
+    }
+
+    // Figure out which arguments to pass the method based on its argument types
+    protected object ResolveButtonArgument(ParameterInfo param, NConfigOptionRow? optionRow)
+    {
+        var t = param.ParameterType;
+
+        if (typeof(ModConfig).IsAssignableFrom(t)) return this;
+        if (t == typeof(NConfigOptionRow)) return optionRow!;
+
+        // Nullable for the validation loop in GenerateButtonRowFromMethod to work (we don't want a NullPointerException
+        // in the validation loop)
+        if (t == typeof(NConfigButton)) return optionRow?.SettingControl!;
+
+        throw new ArgumentException(
+            $"Unsupported parameter type '{t.Name}' for method {param.Member.Name}.");
+    }
+
+    protected void AddHoverTipToOptionRowIfEnabled(NConfigOptionRow row, MemberInfo member)
+    {
         // Create a HoverTip for this option row if appropriate
-        var propertyHoverAttr = property.GetCustomAttribute<ConfigHoverTipAttribute>();
+        var propertyHoverAttr = member.GetCustomAttribute<ConfigHoverTipAttribute>();
         var classHoverAttr = GetType().GetCustomAttribute<HoverTipsByDefaultAttribute>();
 
         var hoverTipsByDefault = classHoverAttr != null;
@@ -164,17 +238,16 @@ public class SimpleModConfig : ModConfig
 
         if (explicitHoverAttrEnabled ?? hoverTipsByDefault)
         {
-            optionRow.AddHoverTip();
+            row.AddHoverTip();
         }
-
-        return optionRow;
     }
 
     /// <summary>
     /// <para>Auto-generate option rows for all properties in this SimpleModConfig. Runs by default, so that a subclass
     /// only needs to add its config properties, and nothing more, to get a reasonable UI.</para>
     /// Properties marked with [ConfigHideInUI] will be ignored. Properties marked with [ConfigIgnore] won't even make
-    /// it to this method.
+    /// it to this method.<br/>
+    /// Methods marked with [ConfigButton] will generate buttons.
     /// </summary>
     /// <param name="targetContainer">Container where the generated options are inserted.</param>
     protected void GenerateOptionsForAllProperties(Control targetContainer)
@@ -182,16 +255,27 @@ public class SimpleModConfig : ModConfig
         Control? currentSetting = null;
         string? currentSection = null;
 
-        var properties = ConfigProperties.Where(prop =>
-            prop.GetCustomAttribute<ConfigHideInUI>() == null).ToArray();
+        // Fetch properties AND methods in the order they appear in the source file.
+        // Instance is supported for methods, but not properties (which must be static); they are filtered in
+        // ModConfig.CheckConfigProperties, and will be filtered out by IsVisibleMember().
+        var filteredMembers = GetType()
+            .GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)
+            .Where(IsVisibleMember)
+            .OrderBy(GetSourceOrder)
+            .ToList();
 
-        for (var i = 0; i < properties.Length; i++)
+        foreach (var member in filteredMembers)
         {
-            var property = properties[i];
-            var nextProperty = i < properties.Length - 1 ? properties[i + 1] : null;
+            MainFile.Logger.Info("member: " + member.Name);
+        }
+
+        for (var i = 0; i < filteredMembers.Count; i++)
+        {
+            var member = filteredMembers[i];
+            var nextMember = i < filteredMembers.Count - 1 ? filteredMembers[i + 1] : null;
 
             // Create a section header if this property starts a new section
-            var sectionName = property.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
+            var sectionName = member.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
             if (sectionName != null && sectionName != currentSection)
             {
                 currentSection = sectionName;
@@ -202,7 +286,12 @@ public class SimpleModConfig : ModConfig
             // Generate the option row and set up focus handling
             try
             {
-                var newRow = GenerateOptionFromProperty(property);
+                var newRow = member switch
+                {
+                    PropertyInfo p => GenerateOptionFromProperty(p),
+                    MethodInfo m => GenerateButtonRowFromMethod(m),
+                    _ => throw new UnreachableException("Invalid type that should have been filtered out")
+                };
                 targetContainer.AddChild(newRow);
 
                 var previousSetting = currentSetting;
@@ -219,17 +308,35 @@ public class SimpleModConfig : ModConfig
             }
             catch (NotSupportedException ex)
             {
-                MainFile.Logger.Error($"Not creating UI for unsupported property '{property.Name}': {ex.Message}");
+                MainFile.Logger.Error($"Not creating UI for unsupported property '{member.Name}': {ex.Message}");
                 continue;
             }
 
             // Add a divider unless the next property starts a new section (or there is no next)
-            var nextSectionName = nextProperty?.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
+            var nextSectionName = nextMember?.GetCustomAttribute<ConfigSectionAttribute>()?.Name;
             var nextIsSameSection = nextSectionName == null || nextSectionName == currentSection;
-            if (nextProperty != null && nextIsSameSection)
+            if (nextMember != null && nextIsSameSection)
             {
                 targetContainer.AddChild(CreateDividerControl());
             }
         }
+
+        return;
+
+        bool IsVisibleMember(MemberInfo member) => member switch
+        {
+            PropertyInfo p => ConfigProperties.Contains(p) && p.GetCustomAttribute<ConfigHideInUI>() == null,
+            MethodInfo m => m.GetCustomAttribute<ConfigButtonAttribute>() != null,
+            _ => false
+        };
+
+        int GetSourceOrder(MemberInfo member) => member switch
+        {
+            // Properties and methods are in different tables in the assembly, but since getters and setters are methods,
+            // we can sort by looking at those instead.
+            MethodInfo m => m.MetadataToken,
+            PropertyInfo p => p.GetMethod?.MetadataToken ?? p.SetMethod?.MetadataToken ?? 0,
+            _ => 0
+        };
     }
 }

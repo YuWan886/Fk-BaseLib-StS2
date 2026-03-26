@@ -1,4 +1,4 @@
-﻿using Godot;
+﻿using BaseLib.Config.UI;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 
@@ -79,21 +79,20 @@ internal class BaseLibConfig : SimpleModConfig
     [ConfigIgnore] // Don't load, save or create a UI for this property
     public static int NotAConfigProperty { get; set; } = 42;
 
-    // An example on how to add a custom button at the end of the list, but before the restore defaults button
-    public override void SetupConfigUI(Control optionContainer)
+    // This is the last thing in this example, but it doesn't have to be. It will be shown in the same order as in the
+    // source file.
+    [ConfigButton("HelloWorld")]
+    public static void ExampleButton(BaseLibConfig myConfigInstance, NConfigButton clickedButton, NConfigOptionRow row)
     {
-        GenerateOptionsForAllProperties(optionContainer);
+        // All parameters are optional, and can be specified in any order with any name.
+        // None of them are needed for this example, but they are kept to show the supported types.
 
-        optionContainer.AddChild(CreateDividerControl());
+        var name = string.IsNullOrWhiteSpace(PlayerName) ? "Player" : PlayerName;
+        var popup = NErrorPopup.Create("Hello World", $"Hi there, {name}!", false);
+        if (popup != null && NModalContainer.Instance != null) NModalContainer.Instance.Add(popup);
 
-        var buttonRow = CreateButton("ExampleButton", "HelloWorld", () =>
-        {
-            var name = string.IsNullOrWhiteSpace(PlayerName) ? "Player" : PlayerName;
-            var popup = NErrorPopup.Create("Hello World", $"Hi there, {name}!", false);
-            if (popup != null && NModalContainer.Instance != null) NModalContainer.Instance.Add(popup);
-        }, true);
-        optionContainer.AddChild(buttonRow);
-
-        AddRestoreDefaultsButton(optionContainer);
+        // We can update settings here, too
+        MinimumElitesPerAct = 10;
+        StartingHealthOffset = -100; // Capped to its minimum of -50
     }
 }

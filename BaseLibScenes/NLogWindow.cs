@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using BaseLib.Config;
+using BaseLib.Extensions;
 using Godot;
 using MegaCrit.Sts2.Core.Logging;
 
@@ -30,8 +31,10 @@ public partial class NLogWindow : Window
 
     private string _filterText = "";
     private Regex? _regex;
+    private bool _settingChanged;
 
     private bool _isFollowingLog = true;
+    private int _currentFontSize; // Set on load
 
     public override void _EnterTree()
     {
@@ -67,12 +70,16 @@ public partial class NLogWindow : Window
             _logLevelDropdown.AddItem(level.ToString());
         }
 
-        _logLevelDropdown.Selected = (int)LogLevel.Info;
+        _logLevelDropdown.Selected = BaseLibConfig.LastLogLevel;
+        _regexButton.ButtonPressed = BaseLibConfig.LogUseRegex;
+        _inverseButton.ButtonPressed = BaseLibConfig.LogInvertFilter;
+        _filterInput.Text = BaseLibConfig.LogLastFilter;
+        _currentFontSize = (int)BaseLibConfig.LogFontSize;
 
-        _logLevelDropdown.ItemSelected += (_) => Refresh();
-        _filterInput.TextChanged += (_) => UpdateFilter();
-        _regexButton.Toggled += (_) => UpdateFilter();
-        _inverseButton.Toggled += (_) => { Refresh(); ScrollToBottomAsync(); };
+        _filterInput.TextChanged += (_) => { _settingChanged = true; UpdateFilter(); };
+        _regexButton.Toggled += (_) => { _settingChanged = true; UpdateFilter(); };
+        _inverseButton.Toggled += (_) => { _settingChanged = true; Refresh(); ScrollToBottomAsync(); };
+        _logLevelDropdown.ItemSelected += (_) => { _settingChanged = true; Refresh(); ScrollToBottomAsync(); };
 
         SizeChanged += UpdateText;
         CloseRequested += QueueFree;
@@ -82,7 +89,9 @@ public partial class NLogWindow : Window
         scrollbar.ValueChanged += OnScrollbarValueChanged;
 
         _isFollowingLog = true;
-        Refresh();
+
+        SetFontSize(_currentFontSize, false);
+        UpdateFilter(); // Also calls Refresh()
     }
 
     private void UpdateFilter()
@@ -112,11 +121,22 @@ public partial class NLogWindow : Window
 
     public void Refresh()
     {
+        if (!IsNodeReady()) return;
         UpdateText();
+
+        if (!_settingChanged) return;
+
+        _settingChanged = false;
+        BaseLibConfig.LastLogLevel = _logLevelDropdown!.Selected;
+        BaseLibConfig.LogInvertFilter = _inverseButton!.ButtonPressed;
+        BaseLibConfig.LogUseRegex = _regexButton!.ButtonPressed;
+        BaseLibConfig.LogLastFilter = _filterText;
+        ModConfig.SaveDebounced<BaseLibConfig>();
     }
 
     private void UpdateText()
     {
+        if (!IsNodeReady()) return;
         if (_logLabel is null || _scrollContainer is null || _logLevelDropdown is null) return;
 
         _isFollowingLog = _isFollowingLog || IsNearBottom();
@@ -186,6 +206,29 @@ public partial class NLogWindow : Window
         if (_log.Limit == configuredLimit) return;
 
         _log.SetLimit(configuredLimit);
+    }
+
+    public override void _Input(InputEvent @event)
+    {
+        if (@event is not InputEventMouseButton { CtrlPressed: true } mouseEvent) return;
+        if (mouseEvent.ButtonIndex != MouseButton.WheelUp && mouseEvent.ButtonIndex != MouseButton.WheelDown) return;
+        if (!mouseEvent.IsReleased()) return; // Don't double-count: pressed, then released
+        ChangeFontSize(mouseEvent.ButtonIndex == MouseButton.WheelUp ? 1 : -1);
+        GetViewport().SetInputAsHandled();
+    }
+
+    private void ChangeFontSize(int deltaPx) =>
+        SetFontSize((int)Mathf.Clamp(BaseLibConfig.LogFontSize + deltaPx, 8, 48));
+
+    private void SetFontSize(int newSize, bool save = true)
+    {
+        _logLabel?.AddThemeFontSizeOverrideAll(newSize);
+        _currentFontSize = newSize;
+        ScrollToBottomAsync();
+
+        if (!save) return;
+        BaseLibConfig.LogFontSize = newSize;
+        ModConfig.SaveDebounced<BaseLibConfig>();
     }
 
     private class LimitedLog : Queue<string>

@@ -9,6 +9,9 @@
   "BASELIB-LIMITED_LOG_SIZE.title": "Log history size",
   "BASELIB-LIMITED_LOG_SIZE.hover.desc": "Maximum number of lines retained in the in-game log window.",
 
+  "BASELIB-LOG_FONT_SIZE.title": "Log font size",
+  "BASELIB-LOG_FONT_SIZE.hover.desc": "Can also be set with Ctrl+scroll in the log window.",
+
   "BASELIB-RESTORE_DEFAULTS.title": "Restore defaults",
   "BASELIB-RESET_MODCONFIG_CONFIRMATION.body": "Are you sure you want to reset this mod's settings to default?",
 

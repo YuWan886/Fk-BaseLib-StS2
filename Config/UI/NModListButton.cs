@@ -1,4 +1,5 @@
 ﻿using Godot;
+using MegaCrit.Sts2.Core.Assets;
 using MegaCrit.Sts2.Core.ControllerInput;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
@@ -59,6 +60,7 @@ public partial class NModListButton : NButton
             TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis,
             LabelSettings = new LabelSettings {
                 FontSize = 24,
+                Font = PreloadManager.Cache.GetAsset<Font>("res://themes/kreon_regular_glyph_space_one.tres"),
                 FontColor = _textNormal,
                 ShadowSize = 2,
                 ShadowColor = new Color(0f, 0f, 0f, 0.8f)

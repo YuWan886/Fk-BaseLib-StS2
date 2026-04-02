@@ -13,6 +13,12 @@ namespace BaseLib.Config;
 public class SimpleModConfig : ModConfig
 {
     /// <summary>
+    /// Lists to keep track of handlers created in order to properly to dispose.
+    /// </summary>
+    protected readonly List<EventHandler> _configChangedHandlers = new();
+    protected readonly List<Action> _configReloadedHandlers = new();
+    
+    /// <summary>
     /// Auto-generate a UI from the properties used. Should be enough for the vast majority of mods,
     /// but you can also subclass SimpleModConfig and override this to get access to helpers like
     /// <see cref="CreateToggleOption"/> (in addition to the raw Create*Control methods from ModConfig),
@@ -21,6 +27,7 @@ public class SimpleModConfig : ModConfig
     public override void SetupConfigUI(Control optionContainer)
     {
         BaseLibMain.Logger.Info($"Setting up SimpleModConfig {GetType().FullName}");
+        ClearUIEventHandlers();
         GenerateOptionsForAllProperties(optionContainer);
         AddRestoreDefaultsButton(optionContainer);
     }
@@ -312,9 +319,12 @@ public class SimpleModConfig : ModConfig
                                 associatedDivider.Visible = shouldBeVisible;
                         };
                         
-                        updateVisibility();
-                        ConfigChanged += (_, _) => updateVisibility();
+                        EventHandler configChangedHandler = (_, _) => updateVisibility();
+                        ConfigChanged += configChangedHandler;
                         OnConfigReloaded += updateVisibility;
+                        
+                        _configChangedHandlers.Add(configChangedHandler);
+                        _configReloadedHandlers.Add(updateVisibility);
                     }
                 }
 
@@ -369,5 +379,17 @@ public class SimpleModConfig : ModConfig
             PropertyInfo p => p.GetMethod?.MetadataToken ?? p.SetMethod?.MetadataToken ?? 0,
             _ => 0
         };
+    }
+    
+    public void ClearUIEventHandlers()
+    {
+        foreach (var handler in _configChangedHandlers)
+            ConfigChanged -= handler;
+        
+        foreach (var handler in _configReloadedHandlers)
+            OnConfigReloaded -= handler;
+        
+        _configChangedHandlers.Clear();
+        _configReloadedHandlers.Clear();
     }
 }

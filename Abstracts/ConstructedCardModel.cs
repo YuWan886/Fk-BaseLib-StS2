@@ -1,4 +1,5 @@
-﻿using BaseLib.Utils;
+﻿using BaseLib.Extensions;
+using BaseLib.Utils;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.HoverTips;
@@ -44,54 +45,46 @@ public abstract class ConstructedCardModel(
         }
         return this;
     }
-    protected ConstructedCardModel WithVar(string name, int baseVal)
+    protected ConstructedCardModel WithVar(string name, int baseVal, int upgrade = 0)
     {
-        _dynamicVars.Add(new DynamicVar(name, baseVal));
+        _dynamicVars.Add(new DynamicVar(name, baseVal).WithUpgrade(upgrade));
         return this;
     }
     
     /// <summary>
     /// Generates a <seealso cref="BlockVar"/>BlockVar with given base value.
     /// </summary>
-    /// <param name="baseVal"></param>
-    /// <returns></returns>
-    protected ConstructedCardModel WithBlock(int baseVal)
+    protected ConstructedCardModel WithBlock(int baseVal, int upgrade = 0)
     {
-        _dynamicVars.Add(new BlockVar(baseVal, ValueProp.Move));
+        _dynamicVars.Add(new BlockVar(baseVal, ValueProp.Move).WithUpgrade(upgrade));
         return this;
     }
     
     /// <summary>
     /// Generates a <seealso cref="DamageVar"/>DamageVar with given base value.
     /// </summary>
-    /// <param name="baseVal"></param>
-    /// <returns></returns>
-    protected ConstructedCardModel WithDamage(int baseVal)
+    protected ConstructedCardModel WithDamage(int baseVal, int upgrade = 0)
     {
-        _dynamicVars.Add(new DamageVar(baseVal, ValueProp.Move));
+        _dynamicVars.Add(new DamageVar(baseVal, ValueProp.Move).WithUpgrade(upgrade));
         return this;
     }
 
     /// <summary>
     /// Generates a <seealso cref="CardsVar"/>CardsVar with given base value.
     /// </summary>
-    /// <param name="baseVal"></param>
-    /// <returns></returns>
-    protected ConstructedCardModel WithCards(int baseVal)
+    protected ConstructedCardModel WithCards(int baseVal, int upgrade = 0)
     {
-        _dynamicVars.Add(new CardsVar(baseVal));
+        var dynVar = new CardsVar(baseVal).WithUpgrade(upgrade);
+        _dynamicVars.Add(dynVar);
         return this;
     }
     
     /// <summary>
     /// Generates a <seealso cref="PowerVar{T}"/>PowerVar and adds a tooltip. You can also just pass a PowerVar to <seealso cref="WithVars"/>WithVars.
     /// </summary>
-    /// <param name="baseVal"></param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
-    protected ConstructedCardModel WithPower<T>(int baseVal) where T : PowerModel
+    protected ConstructedCardModel WithPower<T>(int baseVal, int upgrade = 0) where T : PowerModel
     {
-        _dynamicVars.Add(new PowerVar<T>(baseVal));
+        _dynamicVars.Add(new PowerVar<T>(baseVal).WithUpgrade(upgrade));
         _hoverTips.Add(new(_=>HoverTipFactory.FromPower<T>()));
         return this;
     }
@@ -99,13 +92,9 @@ public abstract class ConstructedCardModel(
     /// <summary>
     /// Generates a <seealso cref="PowerVar{T}"/>PowerVar with the specified name and adds a tooltip. You can also just pass a PowerVar to <seealso cref="WithVars"/>WithVars.
     /// </summary>
-    /// <param name="name"></param>
-    /// <param name="baseVal"></param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
-    protected ConstructedCardModel WithPower<T>(string name, int baseVal) where T : PowerModel
+    protected ConstructedCardModel WithPower<T>(string name, int baseVal, int upgrade = 0) where T : PowerModel
     {
-        _dynamicVars.Add(new PowerVar<T>(name, baseVal));
+        _dynamicVars.Add(new PowerVar<T>(name, baseVal).WithUpgrade(upgrade));
         _hoverTips.Add(new(_=>HoverTipFactory.FromPower<T>()));
         return this;
     }
@@ -117,29 +106,24 @@ public abstract class ConstructedCardModel(
     }
 
     //TODO - setup arbitrary number of calculated variables
+    //set upgrade for bonus also?
     /// <summary>
     /// Variable value is baseVal + bonus
     /// </summary>
-    /// <param name="name"></param>
-    /// <param name="baseVal"></param>
-    /// <param name="bonus"></param>
-    protected ConstructedCardModel WithCalculatedVar(string name, int baseVal, Func<CardModel, Creature?, decimal> bonus)
+    protected ConstructedCardModel WithCalculatedVar(string name, int baseVal, 
+        Func<CardModel, Creature?, decimal> bonus, int upgrade = 0, int bonusUpgrade = 0)
     {
-        SetupCalculatedVar(new CalculatedVar(name), baseVal, 1, bonus);
+        SetupCalculatedVar(new CalculatedVar(name), baseVal, 1, bonus, upgrade, bonusUpgrade);
         return this;
     }
 
     /// <summary>
     /// Variable value is baseVal + (multVal * mult)
     /// </summary>
-    /// <param name="name"></param>
-    /// <param name="baseVal"></param>
-    /// <param name="multVal"></param>
-    /// <param name="mult"></param>
     protected ConstructedCardModel WithCalculatedVar(string name, int baseVal, int multVal,
-        Func<CardModel, Creature?, decimal> mult)
+        Func<CardModel, Creature?, decimal> mult, int upgrade = 0, int bonusUpgrade = 0)
     {
-        SetupCalculatedVar(new CalculatedVar(name), baseVal, multVal, mult);
+        SetupCalculatedVar(new CalculatedVar(name), baseVal, multVal, mult, upgrade, bonusUpgrade);
         return this;
     }
     
@@ -147,26 +131,20 @@ public abstract class ConstructedCardModel(
     /// Resulting variable name is "CalculatedBlock"
     /// Variable value is baseVal + bonus
     /// </summary>
-    /// <param name="baseVal"></param>
-    /// <param name="bonus"></param>
-    /// <param name="props"></param>
-    protected ConstructedCardModel WithCalculatedBlock(int baseVal, Func<CardModel, Creature?, decimal> bonus, ValueProp props = ValueProp.Move)
+    protected ConstructedCardModel WithCalculatedBlock(int baseVal, Func<CardModel, Creature?, decimal> bonus, 
+        ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
     {
-        SetupCalculatedVar(new CalculatedBlockVar(props), baseVal, 1, bonus);
+        SetupCalculatedVar(new CalculatedBlockVar(props), baseVal, 1, bonus, upgrade, bonusUpgrade);
         return this;
     }
     /// <summary>
     /// Resulting variable name is "CalculatedBlock"
     /// Variable value is baseVal + (multVal * mult)
     /// </summary>
-    /// <param name="baseVal"></param>
-    /// <param name="multVal"></param>
-    /// <param name="mult"></param>
-    /// <param name="props"></param>
     protected ConstructedCardModel WithCalculatedBlock(int baseVal, int multVal,
-        Func<CardModel, Creature?, decimal> mult, ValueProp props = ValueProp.Move)
+        Func<CardModel, Creature?, decimal> mult, ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
     {
-        SetupCalculatedVar(new CalculatedBlockVar(props), baseVal, multVal, mult);
+        SetupCalculatedVar(new CalculatedBlockVar(props), baseVal, multVal, mult, upgrade, bonusUpgrade);
         return this;
     }
     
@@ -174,37 +152,31 @@ public abstract class ConstructedCardModel(
     /// Resulting variable name is "CalculatedDamage"
     /// Variable value is baseVal + bonus
     /// </summary>
-    /// <param name="baseVal"></param>
-    /// <param name="bonus"></param>
-    /// <param name="props"></param>
-    protected ConstructedCardModel WithCalculatedDamage(int baseVal, Func<CardModel, Creature?, decimal> bonus, ValueProp props = ValueProp.Move)
+    protected ConstructedCardModel WithCalculatedDamage(int baseVal, Func<CardModel, Creature?, decimal> bonus, 
+        ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
     {
-        SetupCalculatedVar(new CalculatedDamageVar(props), baseVal, 1, bonus);
+        SetupCalculatedVar(new CalculatedDamageVar(props), baseVal, 1, bonus, upgrade, bonusUpgrade);
         return this;
     }
     /// <summary>
     /// Resulting variable name is "CalculatedDamage"
     /// Variable value is baseVal + (multVal * mult)
     /// </summary>
-    /// <param name="baseVal"></param>
-    /// <param name="multVal"></param>
-    /// <param name="mult"></param>
-    /// <param name="props"></param>
     protected ConstructedCardModel WithCalculatedDamage(int baseVal, int multVal,
-        Func<CardModel, Creature?, decimal> mult, ValueProp props = ValueProp.Move)
+        Func<CardModel, Creature?, decimal> mult, ValueProp props = ValueProp.Move, int upgrade = 0, int bonusUpgrade = 0)
     {
-        SetupCalculatedVar(new CalculatedDamageVar(props), baseVal, multVal, mult);
+        SetupCalculatedVar(new CalculatedDamageVar(props), baseVal, multVal, mult, upgrade, bonusUpgrade);
         return this;
     }
 
     private void SetupCalculatedVar(CalculatedVar var, int baseVal, int multVal,
-        Func<CardModel, Creature?, decimal> mult)
+        Func<CardModel, Creature?, decimal> mult, int upgrade, int bonusUpgrade)
     {
         if (_hasCalculatedVar) throw new Exception("Cards only support one calculated variable currently");
         _hasCalculatedVar = true;
 
-        _dynamicVars.Add(new CalculationBaseVar(baseVal));
-        _dynamicVars.Add(new CalculationExtraVar(multVal));
+        _dynamicVars.Add(new CalculationBaseVar(baseVal).WithUpgrade(upgrade));
+        _dynamicVars.Add(new CalculationExtraVar(multVal).WithUpgrade(bonusUpgrade));
         _dynamicVars.Add(var.WithMultiplier(mult));
     }
 

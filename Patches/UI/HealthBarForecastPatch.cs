@@ -94,7 +94,7 @@ public static class HealthBarForecastPatch
             var leftWidth = GetFgWidth(healthBar, remainingHp);
             var rightWidth = GetFgWidth(healthBar, previousHp);
             node.Visible = true;
-            node.SelfModulate = segment.Color;
+            ApplyForecastSegmentAppearance(node, segment.Color, segment.OverlayMaterial);
             node.OffsetLeft = remainingHp > 0 ? Math.Max(0f, leftWidth - node.PatchMarginLeft) : 0f;
             node.OffsetRight = rightWidth - maxWidth;
 
@@ -164,7 +164,7 @@ public static class HealthBarForecastPatch
             var endWidth = GetFgWidth(healthBar, leftAccumulated);
 
             node.Visible = true;
-            node.SelfModulate = segment.Color;
+            ApplyForecastSegmentAppearance(node, segment.Color, segment.OverlayMaterial);
             node.OffsetLeft = segmentStart > 0 ? Math.Max(0f, startWidth - node.PatchMarginLeft) : 0f;
             var leftOffsetRight = Math.Min(0f, endWidth - maxWidth + node.PatchMarginRight);
             if (rightIndex > 0)
@@ -240,7 +240,8 @@ public static class HealthBarForecastPatch
                 registered.Segment.Color,
                 registered.Segment.Direction,
                 registered.Segment.Order,
-                registered.SequenceOrder))
+                registered.SequenceOrder,
+                registered.Segment.OverlayMaterial))
             .Where(segment => segment.Amount > 0)
             .ToArray();
     }
@@ -355,7 +356,15 @@ public static class HealthBarForecastPatch
                 continue;
 
             segment.Visible = false;
+            segment.Material = null;
+            segment.SelfModulate = Colors.White;
         }
+    }
+
+    private static void ApplyForecastSegmentAppearance(NinePatchRect node, Color color, Material? overlayMaterial)
+    {
+        node.Material = overlayMaterial;
+        node.SelfModulate = color;
     }
 
     private static float GetMaxFgWidth(NHealthBar healthBar)
@@ -467,7 +476,8 @@ public static class HealthBarForecastPatch
         Color Color,
         HealthBarForecastDirection Direction,
         int Order,
-        long SequenceOrder);
+        long SequenceOrder,
+        Material? OverlayMaterial);
     
     private readonly record struct LethalCandidate(
         int Amount,

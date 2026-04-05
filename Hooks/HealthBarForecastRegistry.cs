@@ -192,7 +192,12 @@ public static class HealthBarForecastRegistry
         if (!TryParseDirection(accessors.ReadDirection(segment), out var direction))
             return false;
 
-        converted = new HealthBarForecastSegment(amount, color, direction, accessors.ReadOrder(segment));
+        converted = new HealthBarForecastSegment(
+            amount,
+            color,
+            direction,
+            accessors.ReadOrder(segment),
+            accessors.ReadOverlayMaterial(segment));
         return true;
     }
 
@@ -233,11 +238,16 @@ public static class HealthBarForecastRegistry
         var color = type.GetProperty("Color", BindingFlags.Instance | BindingFlags.Public);
         var direction = type.GetProperty("Direction", BindingFlags.Instance | BindingFlags.Public);
         var order = type.GetProperty("Order", BindingFlags.Instance | BindingFlags.Public);
+        var overlayMaterial = type.GetProperty("OverlayMaterial", BindingFlags.Instance | BindingFlags.Public);
 
         if (amount?.PropertyType != typeof(int) ||
             color?.PropertyType != typeof(Color) ||
             direction == null)
             return null;
+
+        Func<object, Material?> readOverlay = overlayMaterial?.PropertyType == typeof(Material)
+            ? segment => (Material?)overlayMaterial.GetValue(segment)
+            : _ => null;
 
         return new ForeignSegmentAccessors(
             segment => (int)amount.GetValue(segment)!,
@@ -245,7 +255,8 @@ public static class HealthBarForecastRegistry
             segment => direction.GetValue(segment),
             order?.PropertyType == typeof(int)
                 ? segment => (int)order.GetValue(segment)!
-                : _ => 0);
+                : _ => 0,
+            readOverlay);
     }
 
     internal readonly record struct RegisteredHealthBarForecastSegment(
@@ -263,5 +274,6 @@ public static class HealthBarForecastRegistry
         Func<object, int> ReadAmount,
         Func<object, Color> ReadColor,
         Func<object, object?> ReadDirection,
-        Func<object, int> ReadOrder);
+        Func<object, int> ReadOrder,
+        Func<object, Material?> ReadOverlayMaterial);
 }

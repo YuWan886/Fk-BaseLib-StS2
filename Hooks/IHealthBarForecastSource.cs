@@ -10,12 +10,24 @@ public enum HealthBarForecastDirection
     FromLeft = 1
 }
 
+/// <summary>
+///     One forecast overlay segment for a creature health bar.
+/// </summary>
 public readonly record struct HealthBarForecastSegment(
     int Amount,
     Color Color,
     HealthBarForecastDirection Direction,
-    int Order = 0
-);
+    int Order,
+    Material? OverlayMaterial)
+{
+    /// <summary>
+    ///     Overload for mods built against the original four-parameter constructor (no custom material).
+    /// </summary>
+    public HealthBarForecastSegment(int amount, Color color, HealthBarForecastDirection direction, int order = 0)
+        : this(amount, color, direction, order, null)
+    {
+    }
+}
 
 public readonly record struct HealthBarForecastContext(Creature Creature)
 {

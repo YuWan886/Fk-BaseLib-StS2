@@ -219,11 +219,7 @@ public static class HealthBarForecastPatch
         if (!lethalColor.HasValue)
         {
             if (!IsDoomLethalAfterRight(healthBar, creature))
-            {
-                hpLabel.RemoveThemeColorOverride("font_color");
-                hpLabel.RemoveThemeColorOverride("font_outline_color");
                 return;
-            }
             hpLabel.AddThemeColorOverride("font_color", DoomLethalTextColor);
             hpLabel.AddThemeColorOverride("font_outline_color", DoomLethalOutlineColor);
             return;

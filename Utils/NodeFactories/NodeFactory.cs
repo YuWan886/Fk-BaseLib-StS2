@@ -29,6 +29,12 @@ public abstract class NodeFactory<T> : NodeFactory where T : Node, new()
             BaseLibMain.Logger.Warn($"NodeFactory<{typeof(T)}>.CreateFromResource called while not on main thread");
             throw new Exception($"NodeFactory<{typeof(T)}>.CreateFromResource called while not on main thread");
         }
+
+        if (resource is string s && ResourceLoader.Exists(s))
+        {
+            resource = ResourceLoader.Load(s);
+        }
+        
         BaseLibMain.Logger.Info($"Creating {typeof(T).Name} from resource {resource.GetType().Name}");
         var n = _instance.CreateBareFromResource(resource);
         _instance.ConvertScene(n, null);

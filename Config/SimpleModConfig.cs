@@ -155,8 +155,8 @@ public class SimpleModConfig : ModConfig
 
         NConfigOptionRow optionRow;
         if (propertyType == typeof(bool)) optionRow = CreateToggleOption(property);
-        else if (propertyType == typeof(double)) optionRow = CreateSliderOption(property);
         else if (propertyType == typeof(string)) optionRow = CreateLineEditOption(property);
+        else if (NConfigSlider.SupportedTypes.Contains(propertyType)) optionRow = CreateSliderOption(property);
         else if (propertyType.IsEnum) optionRow = CreateDropdownOption(property);
         else throw new NotSupportedException($"Type {propertyType.FullName} is not supported by SimpleModConfig.");
 
@@ -210,7 +210,7 @@ public class SimpleModConfig : ModConfig
             ShowAndClearPendingErrors();
         };
 
-        optionRow = CreateButton(method.Name, attr.ButtonLabelKey, onButtonClicked, true);
+        optionRow = CreateButton(method.Name, attr.ButtonLabelKey, onButtonClicked);
         AddHoverTipToOptionRowIfEnabled(optionRow, method);
         return optionRow;
     }

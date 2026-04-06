@@ -176,7 +176,10 @@ public abstract class ConstructedCardModel(
         _hasCalculatedVar = true;
 
         _dynamicVars.Add(new CalculationBaseVar(baseVal).WithUpgrade(upgrade));
-        _dynamicVars.Add(new CalculationExtraVar(multVal).WithUpgrade(bonusUpgrade));
+        _dynamicVars.Add(var is CalculatedDamageVar
+            ? new ExtraDamageVar(multVal).WithUpgrade(bonusUpgrade)
+            : new CalculationExtraVar(multVal).WithUpgrade(bonusUpgrade));
+        
         _dynamicVars.Add(var.WithMultiplier(mult));
     }
 

@@ -18,7 +18,7 @@ public partial class NLogWindow : Window
         _log.Enqueue(msg);
         foreach (var window in _listeners)
         {
-            window.Refresh();
+            window.SetDirty();
         }
     }
 
@@ -36,6 +36,10 @@ public partial class NLogWindow : Window
 
     private bool _isFollowingLog = true;
     private int _currentFontSize; // Set on load
+    private bool _needsRefresh;
+    private double _timeSinceRefresh;
+
+    private void SetDirty() => _needsRefresh = true;
 
     public override void _EnterTree()
     {
@@ -76,7 +80,7 @@ public partial class NLogWindow : Window
         _regexButton.ButtonPressed = BaseLibConfig.LogUseRegex;
         _inverseButton.ButtonPressed = BaseLibConfig.LogInvertFilter;
         _filterInput.Text = BaseLibConfig.LogLastFilter;
-        _currentFontSize = (int)BaseLibConfig.LogFontSize;
+        _currentFontSize = BaseLibConfig.LogFontSize;
 
         _filterInput.TextChanged += (_) => { _settingChanged = true; UpdateFilter(); };
         _regexButton.Toggled += (_) => { _settingChanged = true; UpdateFilter(); };
@@ -95,6 +99,21 @@ public partial class NLogWindow : Window
         SetFontSize(_currentFontSize, false);
         ApplyMinSizeForScale();
         UpdateFilter(); // Also calls Refresh()
+
+        ProcessMode = ProcessModeEnum.Always;
+    }
+
+    public override void _Process(double delta)
+    {
+        base._Process(delta);
+
+        _timeSinceRefresh += delta;
+        if (!_needsRefresh || !Visible || Mode == ModeEnum.Minimized) return;
+        if (_timeSinceRefresh < 1d / 30d) return;
+
+        _timeSinceRefresh = 0;
+        _needsRefresh = false;
+        Refresh();
     }
 
     private void ApplyMinSizeForScale()
@@ -122,7 +141,7 @@ public partial class NLogWindow : Window
     {
         BaseLibConfig.LogLastSizeX = Size.X;
         BaseLibConfig.LogLastSizeY = Size.Y;
-        UpdateText();
+        SetDirty();
         ModConfig.SaveDebounced<BaseLibConfig>();
     }
 
@@ -244,7 +263,7 @@ public partial class NLogWindow : Window
 
     private static void EnsureLogLimit()
     {
-        int configuredLimit = (int)BaseLibConfig.LimitedLogSize;
+        int configuredLimit = BaseLibConfig.LimitedLogSize;
         if (_log.Limit == configuredLimit) return;
 
         _log.SetLimit(configuredLimit);
@@ -260,7 +279,7 @@ public partial class NLogWindow : Window
     }
 
     private void ChangeFontSize(int deltaPx) =>
-        SetFontSize((int)Mathf.Clamp(BaseLibConfig.LogFontSize + deltaPx, 8, 48));
+        SetFontSize(Math.Clamp(BaseLibConfig.LogFontSize + deltaPx, 8, 48));
 
     private void SetFontSize(int newSize, bool save = true)
     {

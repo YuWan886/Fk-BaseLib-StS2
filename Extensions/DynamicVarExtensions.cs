@@ -18,7 +18,7 @@ public static class DynamicVarExtensions
     public static readonly SpireField<DynamicVar, Func<IHoverTip>> DynamicVarTips = new(() => null);
     public static readonly SpireField<DynamicVar, decimal?> DynamicVarUpgrades = new(() => null);
 
-    public static DynamicVar WithUpgrade(this DynamicVar dynamicVar, decimal upgradeValue)
+    public static TDynamicVar WithUpgrade<TDynamicVar>(this TDynamicVar dynamicVar, decimal upgradeValue) where TDynamicVar : DynamicVar
     {
         if (upgradeValue != 0) DynamicVarUpgrades[dynamicVar] = upgradeValue;
         return dynamicVar;
@@ -53,7 +53,7 @@ public static class DynamicVarExtensions
     /// The key will be the variable's name, with a mod prefix added, in the form of "PREFIX-NAME" (all capitalized).
     /// </summary>
     /// <returns></returns>
-    public static DynamicVar WithTooltip(this DynamicVar var, string? locKey = null, string locTable = "static_hover_tips")
+    public static TDynamicVar WithTooltip<TDynamicVar>(this TDynamicVar var, string? locKey = null, string locTable = "static_hover_tips") where TDynamicVar : DynamicVar
     {
         string key = locKey ?? var.GetType().GetPrefix() + StringHelper.Slugify(var.Name);
 

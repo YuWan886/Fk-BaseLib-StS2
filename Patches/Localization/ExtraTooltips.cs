@@ -1,12 +1,10 @@
-using System.Collections.Generic;
 using BaseLib.Extensions;
 using BaseLib.Utils.Patching;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.HoverTips;
-using MegaCrit.Sts2.Core.Localization.DynamicVars;
 using MegaCrit.Sts2.Core.Models;
 
-namespace BaseLib.Patches.UI;
+namespace BaseLib.Patches.Localization;
 
 [HarmonyPatch(typeof(CardModel), "HoverTips", MethodType.Getter)]
 public class ExtraTooltips
@@ -31,9 +29,9 @@ public class ExtraTooltips
     public static void AddTips(List<IHoverTip> tips, CardModel card)
     {
         //dynvar tips
-        foreach (DynamicVar var in card.DynamicVars.Values)
+        foreach (var dynVar in card.DynamicVars.Values)
         {
-            var tip = DynamicVarExtensions.DynamicVarTips[var]?.Invoke();
+            var tip = DynamicVarExtensions.DynamicVarTips[dynVar]?.Invoke();
             if (tip != null) tips.Add(tip);
         }
     }

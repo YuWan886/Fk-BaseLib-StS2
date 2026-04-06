@@ -22,10 +22,12 @@ internal static class VersionCompatibility
             try
             {
                 _gameVersion = ReleaseInfoManager.Instance.ReleaseInfo?.Version;
+                BaseLibMain.Logger.Info($"Detected game version: {_gameVersion ?? "unknown"}");
                 return _gameVersion;
             }
-            catch
+            catch (Exception e)
             {
+                BaseLibMain.Logger.Warn($"Failed to detect game version: {e.Message}");
                 return null;
             }
         }
@@ -40,27 +42,59 @@ internal static class VersionCompatibility
 
             _loadedModsProperty = typeof(ModManager).GetProperty("LoadedMods", BindingFlags.Public | BindingFlags.Static);
             _isLegacyVersion = _loadedModsProperty == null;
+            BaseLibMain.Logger.Info($"IsLegacyVersion: {_isLegacyVersion.Value} (LoadedMods property: {(_loadedModsProperty != null ? "found" : "not found")})");
             return _isLegacyVersion.Value;
         }
     }
 
     internal static IEnumerable<Mod> GetLoadedMods()
     {
+        BaseLibMain.Logger.Info($"GetLoadedMods called. IsLegacyVersion: {IsLegacyVersion}");
+        
         if (!IsLegacyVersion && _loadedModsProperty != null)
         {
-            var result = _loadedModsProperty.GetValue(null);
-            if (result is IEnumerable<Mod> mods)
-                return mods;
+            try
+            {
+                var result = _loadedModsProperty.GetValue(null);
+                if (result is IEnumerable<Mod> mods)
+                {
+                    var modList = mods.ToList();
+                    BaseLibMain.Logger.Info($"GetLoadedMods (property): Found {modList.Count} mods");
+                    return modList;
+                }
+                BaseLibMain.Logger.Warn($"GetLoadedMods (property): Result is not IEnumerable<Mod>, type: {result?.GetType().Name ?? "null"}");
+            }
+            catch (Exception e)
+            {
+                BaseLibMain.Logger.Error($"GetLoadedMods (property) failed: {e}");
+            }
         }
 
         var getLoadedModsMethod = typeof(ModManager).GetMethod("GetLoadedMods", BindingFlags.Public | BindingFlags.Static);
         if (getLoadedModsMethod != null)
         {
-            var result = getLoadedModsMethod.Invoke(null, null);
-            if (result is IEnumerable<Mod> mods)
-                return mods;
+            try
+            {
+                var result = getLoadedModsMethod.Invoke(null, null);
+                if (result is IEnumerable<Mod> mods)
+                {
+                    var modList = mods.ToList();
+                    BaseLibMain.Logger.Info($"GetLoadedMods (method): Found {modList.Count} mods");
+                    return modList;
+                }
+                BaseLibMain.Logger.Warn($"GetLoadedMods (method): Result is not IEnumerable<Mod>, type: {result?.GetType().Name ?? "null"}");
+            }
+            catch (Exception e)
+            {
+                BaseLibMain.Logger.Error($"GetLoadedMods (method) failed: {e}");
+            }
+        }
+        else
+        {
+            BaseLibMain.Logger.Warn("GetLoadedMods: Neither property nor method found on ModManager");
         }
 
+        BaseLibMain.Logger.Warn("GetLoadedMods: Returning empty list");
         return [];
     }
 

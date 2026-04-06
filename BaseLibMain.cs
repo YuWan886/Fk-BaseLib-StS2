@@ -24,25 +24,56 @@ public static class BaseLibMain
 
         IsMainThread = true;
         
+        Logger.Info("BaseLib initialization starting...");
+        
         try
         {
             NodeFactory.Init();
         }
         catch (Exception e)
         {
-            Logger.Error(e.ToString());
+            Logger.Error($"NodeFactory.Init failed: {e}");
         }
         
         Godot.Bridge.ScriptManagerBridge.LookupScriptsInAssembly(Assembly.GetExecutingAssembly());
         
         ModConfigRegistry.Register(ModId, new BaseLibConfig());
         
+        Logger.Info("Creating Harmony instance and applying patches...");
+        
         Harmony harmony = new(ModId);
 
-        GetCustomLocKey.Patch(harmony);
-        TheBigPatchToCardPileCmdAdd.Patch(harmony);
+        try
+        {
+            GetCustomLocKey.Patch(harmony);
+            Logger.Info("GetCustomLocKey patch applied.");
+        }
+        catch (Exception e)
+        {
+            Logger.Error($"GetCustomLocKey patch failed: {e}");
+        }
+        
+        try
+        {
+            TheBigPatchToCardPileCmdAdd.Patch(harmony);
+            Logger.Info("TheBigPatchToCardPileCmdAdd patch applied.");
+        }
+        catch (Exception e)
+        {
+            Logger.Error($"TheBigPatchToCardPileCmdAdd patch failed: {e}");
+        }
 
-        harmony.PatchAll();
+        try
+        {
+            harmony.PatchAll();
+            Logger.Info("PatchAll completed successfully.");
+        }
+        catch (Exception e)
+        {
+            Logger.Error($"PatchAll failed: {e}");
+        }
+        
+        Logger.Info("BaseLib initialization completed.");
     }
 
     //Hopefully temporary fix for linux

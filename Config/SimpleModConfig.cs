@@ -46,7 +46,7 @@ public class SimpleModConfig : ModConfig
             }
         });
         resetButton.CustomMinimumSize = new Vector2(360, resetButton.CustomMinimumSize.Y);
-        resetButton.SetColor(Color.FromHtml("#c24242"));
+        resetButton.SetColor(Color.FromHtml("#b03f3f"));
 
         var centerContainer = new CenterContainer();
         centerContainer.CustomMinimumSize = new Vector2(0, 128);
@@ -92,6 +92,10 @@ public class SimpleModConfig : ModConfig
     /// <inheritdoc cref="CreateStandardOption"/>
     protected NConfigOptionRow CreateLineEditOption(PropertyInfo property, bool addHoverTip = false) =>
         CreateStandardOption(CreateRawLineEditControl, property, addHoverTip);
+
+    /// <inheritdoc cref="CreateStandardOption"/>
+    protected NConfigOptionRow CreateColorPickerOption(PropertyInfo property, bool addHoverTip = false) =>
+    CreateStandardOption(CreateRawColorPickerControl, property, addHoverTip);
 
     /// <summary>
     /// Creates a button that can be mapped to perform any action.
@@ -158,13 +162,21 @@ public class SimpleModConfig : ModConfig
     protected NConfigOptionRow GenerateOptionFromProperty(PropertyInfo property)
     {
         var propertyType = property.PropertyType;
-
+        var hasColorPickerAttribute = property.GetCustomAttribute<ConfigColorPickerAttribute>() != null;
         NConfigOptionRow optionRow;
-        if (propertyType == typeof(bool)) optionRow = CreateToggleOption(property);
-        else if (propertyType == typeof(string)) optionRow = CreateLineEditOption(property);
-        else if (NConfigSlider.SupportedTypes.Contains(propertyType)) optionRow = CreateSliderOption(property);
-        else if (propertyType.IsEnum) optionRow = CreateDropdownOption(property);
-        else throw new NotSupportedException($"Type {propertyType.FullName} is not supported by SimpleModConfig.");
+
+        if (propertyType == typeof(bool))
+            optionRow = CreateToggleOption(property);
+        else if (propertyType == typeof(Color) || (propertyType == typeof(string) && hasColorPickerAttribute))
+            optionRow = CreateColorPickerOption(property);
+        else if (propertyType == typeof(string))
+            optionRow = CreateLineEditOption(property);
+        else if (NConfigSlider.SupportedTypes.Contains(propertyType))
+            optionRow = CreateSliderOption(property);
+        else if (propertyType.IsEnum)
+            optionRow = CreateDropdownOption(property);
+        else
+            throw new NotSupportedException($"Type {propertyType.FullName} is not supported by SimpleModConfig.");
 
         AddHoverTipToOptionRowIfEnabled(optionRow, property);
 

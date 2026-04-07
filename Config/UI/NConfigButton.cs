@@ -10,7 +10,7 @@ namespace BaseLib.Config.UI;
 public partial class NConfigButton : NSettingsButton
 {
     private Action? _onPressedAction;
-    private TextureRect _image;
+    private new TextureRect _image;
     public static readonly string DefaultColor = "#3b7a83";
 
     public NConfigButton()

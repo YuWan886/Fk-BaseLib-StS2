@@ -25,11 +25,32 @@ public sealed class CustomEnumAttribute(string? name = null) : Attribute
 /// Marks a CardKeyword field as having additional keyword properties. This is not required to create a keyword,
 /// only if you want to use the additional features added by this.
 /// </summary>
-/// <param name="position">The keyword's localized title will automatically be added to the specified position in the card's description for cards with the keyword.</param>
 [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
-public sealed class KeywordPropertiesAttribute(AutoKeywordPosition position) : Attribute
+public sealed class KeywordPropertiesAttribute : Attribute
 {
-    public AutoKeywordPosition Position { get; } = position;
+    /// <summary>
+    /// Marks a CardKeyword field as having additional keyword properties. This is not required to create a keyword,
+    /// only if you want to use the additional features added by this.
+    /// </summary>
+    /// <param name="position">The keyword's localized title will automatically be added to the specified position in the card's description for cards with the keyword.</param>
+    public KeywordPropertiesAttribute(AutoKeywordPosition position) : this(position, true)
+    {
+    }
+    
+    /// <summary>
+    /// Marks a CardKeyword field as having additional keyword properties. This is not required to create a keyword,
+    /// only if you want to use the additional features added by this.
+    /// </summary>
+    /// <param name="position">The keyword's localized title will automatically be added to the specified position in the card's description for cards with the keyword.</param>
+    /// <param name="richKeyword">Enables energy icons, ?, and ? in the keyword's tooltip.</param>
+    public KeywordPropertiesAttribute(AutoKeywordPosition position, bool richKeyword)
+    {
+        Position = position;
+        RichKeyword = richKeyword;
+    }
+
+    public AutoKeywordPosition Position { get; }
+    public bool RichKeyword { get; }
 }
 
 public enum AutoKeywordPosition
@@ -43,11 +64,12 @@ public static class CustomKeywords
 {
     public static readonly Dictionary<int, KeywordInfo> KeywordIDs = [];
 
-    public readonly struct KeywordInfo(string key, AutoKeywordPosition autoPosition)
+    public readonly struct KeywordInfo(string key)
     {
         public readonly string Key = key;
-        public readonly AutoKeywordPosition AutoPosition = autoPosition;
-
+        public required AutoKeywordPosition AutoPosition { get; init; }
+        public required bool RichKeyword { get; init; }
+        
         public static implicit operator string(KeywordInfo info) => info.Key;
     }
 
@@ -146,24 +168,16 @@ public static class CustomEnums
 }
 
 
-
+[HarmonyPatch(typeof(CardKeywordExtensions), nameof(CardKeywordExtensions.GetLocKeyPrefix))]
 class GetCustomLocKey
 {
-    internal static void Patch(Harmony harmony)
-    {
-        Type t = AccessTools.TypeByName("MegaCrit.Sts2.Core.Entities.Cards.CardKeywordExtensions");
-        var originalMethod = AccessTools.Method(t, "GetLocKeyPrefix");
-        var prefix = AccessTools.Method(typeof(GetCustomLocKey), nameof(UseCustomKeywordMap));
-        harmony.Patch(originalMethod, prefix: new HarmonyMethod(prefix));
-    }
-
-    private static bool UseCustomKeywordMap(CardKeyword keyword, ref string? __result)
+    [HarmonyPrefix]
+    static bool UseCustomKeywordMap(CardKeyword keyword, ref string? __result)
     {
         if (!CustomKeywords.KeywordIDs.TryGetValue((int)keyword, out var keywordInfo)) return true;
         
         __result = keywordInfo.Key;
         return false;
-
     }
 }
 
@@ -236,7 +250,11 @@ class GenEnumValues
                         break;
                 }
                     
-                CustomKeywords.KeywordIDs.Add((int) key, new(keywordId, autoPosition));
+                CustomKeywords.KeywordIDs.Add((int) key, new(keywordId)
+                {
+                    AutoPosition = autoPosition,
+                    RichKeyword = poolAttribute?.RichKeyword ?? true
+                });
                 continue;
             }
             

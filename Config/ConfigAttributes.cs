@@ -142,7 +142,6 @@ public class ConfigTextInputAttribute : Attribute
 ///   <b>NConfigOptionRow</b>: Injects the instance of the row the button belongs to (the node that handles its layout, hover tip, etc.).<br />
 /// </summary>
 /// <param name="buttonLabelKey">LocString key for the text on the button.</param>
-/// <param name="Color">The color to use for this button (HTML/hex color code).</param>
 [AttributeUsage(AttributeTargets.Method)]
 public class ConfigButtonAttribute(string buttonLabelKey) : Attribute
 {
@@ -153,18 +152,90 @@ public class ConfigButtonAttribute(string buttonLabelKey) : Attribute
 }
 
 /// <summary>
-/// Conditionally hides this config row in the UI based on the value of another config property.
-/// The row will only be visible when the watched property equals the specified value.
+/// <para>Sets up conditional visibility for the marked property (or [ConfigButton] method). You can specify either a
+/// property or a method as a target, and optionally specify Invert = true to hide the row if the condition is true.</para>
+/// <para>If a property is specified, its value will be compared to the arguments passed to this attribute; if the
+/// property value is equal to ANY argument, the row will be visible.<br/>
+/// For a boolean property, you can leave the arguments out, in which case the row will be visible
+/// if the property is equal to true.</para>
+/// <para>If you instead specify a method returning bool, the method will be executed, and its return value used to
+/// decide the row's visibility.<br/>
+/// All arguments specified for the attribute will be injected to the method; in addition, you can specify arguments of
+/// types <see cref="ModConfig"/>, <see cref="System.Reflection.PropertyInfo"/> (when annotating a property),
+/// <see cref="System.Reflection.MethodInfo"/> (when annotating a method) and <see cref="System.Reflection.MemberInfo"/>
+/// (to support both with a single method) to inject information about the current row.<br/>
+/// You can combine these as you wish, e.g. bool MyMethod(PropertyInfo targetProp, int min, int max), and then specify
+/// two integer values in the attribute.
+/// </para>
 /// </summary>
-/// <param name="watchedPropertyName">The name of the property to watch (must be in the same ModConfig class).</param>
-/// <param name="expectedValue">The value the watched property must have for this row to be visible.</param>
-/// <param name="invert">If true, the row is visible when the value does NOT match.</param>
+/// <example>
+/// <b>Targeting a boolean property (argument optional, defaults to true):</b>
+/// <code>
+/// public static bool EnableCustomMusic { get; set; } = false;
+/// &#160;
+/// [ConfigVisibleIf(nameof(EnableCustomMusic))]
+/// [SliderRange(0f, 100f)]
+/// public static float MusicVolume { get; set; } = 50f;
+/// </code>
+///
+/// <b>Targeting a property with multiple allowed arguments:</b>
+/// <code>
+/// public enum StartingBonusType { None, Tiny, Standard, Huge }
+/// public static StartingBonusType StartingBonus { get; set; } = StartingBonusType.Standard;
+/// &#160;
+/// // Visible if StartingBonus is Standard or Huge
+/// [ConfigVisibleIf(nameof(StartingBonus), StartingBonusType.Standard, StartingBonusType.Huge)]
+/// [SliderRange(0, 500)]
+/// public static int BonusStartingGold { get; set; } = 0;
+/// </code>
+///
+/// <b>Targeting a method with PropertyInfo auto-injection:</b>
+/// <code>
+/// [SliderRange(1, 5)]
+/// public static int NumCustomColors { get; set; } = 1;
+/// &#160;
+/// private static bool ShouldShowColorRow(PropertyInfo prop)
+/// {
+///     // Dynamically extract the slot number from property names like "CustomColor2"
+///     if (int.TryParse(prop.Name.Replace("CustomColor", ""), out int index))
+///         return NumCustomColors &gt;= index;
+///     return false;
+/// }
+///
+/// [ConfigVisibleIf(nameof(ShouldShowColorRow))]
+/// public static Color CustomColor1 { get; set; }
+///
+/// [ConfigVisibleIf(nameof(ShouldShowColorRow))]
+/// public static Color CustomColor2 { get; set; }
+///
+/// // ... etc.
+/// </code>
+///
+/// <b>Targeting a method with explicitly injected arguments:</b>
+/// <code>
+/// [SliderRange(1, 5)]
+/// public static int EliteCardRewardCount { get; set; } = 1;
+/// &#160;
+/// private static bool IsRewardCountBetween(int min, int max)
+/// {
+///     return EliteCardRewardCount &gt;= min &amp;&amp; EliteCardRewardCount &lt;= max;
+/// }
+/// &#160;
+/// [ConfigVisibleIf(nameof(IsRewardCountBetween), 2, 5)]
+/// public static bool WeightRewardsTowardsRare { get; set; } = false;
+/// </code>
+/// </example>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
-public class ConfigVisibleWhenAttribute(string watchedPropertyName, object expectedValue, bool invert = false) : Attribute
+public class ConfigVisibleIfAttribute(string targetName, params object?[] args) : Attribute
 {
-    public string WatchedPropertyName { get; } = watchedPropertyName;
-    public object ExpectedValue { get; } = expectedValue;
-    public bool Invert { get; } = invert;
+    public string TargetName { get; } = targetName;
+    public object?[] Args { get; } = args;
+
+    /// <summary>
+    /// If true, the visibility condition is inverted.
+    /// (e.g., Hidden when the method returns true, or hidden when the property matches).
+    /// </summary>
+    public bool Invert { get; set; } = false;
 }
 
 /// <summary>
@@ -173,6 +244,8 @@ public class ConfigVisibleWhenAttribute(string watchedPropertyName, object expec
 /// <para>Supported property types: <see cref="Godot.Color"/> and <see cref="string"/> (HTML color code).<br/>
 /// However, note that string is limited to standard 8-bit values, while Color supports a wider range if
 /// <see cref="EditIntensity"/> is true.</para>
+/// <para>Beware: the default value for <see cref="Godot.Color"/> has alpha 0, so you likely want to set a default
+/// value, especially if EditAlpha is false.</para>
 /// </summary>
 [AttributeUsage(AttributeTargets.Property)]
 public class ConfigColorPickerAttribute : Attribute

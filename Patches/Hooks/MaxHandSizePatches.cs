@@ -37,7 +37,12 @@ public static class MaxHandSizePatch
                || (ins.opcode == OpCodes.Ldc_I4 && ins.operand is int i && i == DefaultMaxHandSize);
     }
 
-    internal static int GetMaxHandSize(Player player)
+    /// <summary>
+    /// Calculates the max hand size for a given player by invoking all IMaxHandSizeModifier implementations.
+    /// </summary>
+    /// <param name="player">The player to calculate the max hand size for.</param>
+    /// <returns>The calculated max hand size.</returns>
+    public static int GetMaxHandSize(Player player)
     {
         var runState = player.RunState ?? NullRunState.Instance;
         var combatState = player.Creature.CombatState;

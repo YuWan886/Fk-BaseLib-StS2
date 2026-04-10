@@ -239,6 +239,21 @@ public class ConfigVisibleIfAttribute(string targetName, params object?[] args) 
 }
 
 /// <summary>
+/// No longer functional. Use ConfigVisibleIfAttribute instead.
+/// </summary>
+/// <param name="watchedPropertyName">The name of the property to watch (must be in the same ModConfig class).</param>
+/// <param name="expectedValue">The value the watched property must have for this row to be visible.</param>
+/// <param name="invert">If true, the row is visible when the value does NOT match.</param>
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Method)]
+[Obsolete("No longer functional. Use ConfigVisibleIfAttribute instead.")]
+public class ConfigVisibleWhenAttribute(string watchedPropertyName, object expectedValue, bool invert = false) : Attribute
+{
+    public string WatchedPropertyName { get; } = watchedPropertyName;
+    public object ExpectedValue { get; } = expectedValue;
+    public bool Invert { get; } = invert;
+}
+
+/// <summary>
 /// <para>Displays this property as a color picker element, and sets some properties on the color picker.<br/>
 /// Not required for <see cref="Godot.Color"/> properties, if you want the default values.</para>
 /// <para>Supported property types: <see cref="Godot.Color"/> and <see cref="string"/> (HTML color code).<br/>

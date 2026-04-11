@@ -216,8 +216,6 @@ public partial class NModConfigSubmenu : NSubmenu
             if (button is NModListButton listButton)
                 listButton.SetActiveState(listButton.ModName == GetModTitle(config));
         }
-
-        // TODO: scroll to ensure button is visible -- doesn't seem possible at the moment without custom code
     }
 
     private void InputTypeChanged()
@@ -438,6 +436,7 @@ public partial class NModConfigSubmenu : NSubmenu
     protected override void OnSubmenuShown()
     {
         base.OnSubmenuShown();
+        _contentPanel.Modulate = new Color();
 
         _saveTimer = -1;
 
@@ -447,15 +446,34 @@ public partial class NModConfigSubmenu : NSubmenu
         var lastMod = !string.IsNullOrWhiteSpace(lastModId) ? ModConfigRegistry.Get(lastModId) : baseLibConfig;
         LoadModConfig(lastMod ?? baseLibConfig); // lastMod could be null if the mod is no longer loaded
 
-        _fadeInTween?.Kill();
-        _fadeInTween = CreateTween().SetParallel();
-        _fadeInTween.TweenProperty(_contentPanel, "modulate", Colors.White, 0.5f)
-            .From(new Color(0, 0, 0, 0))
-            .SetEase(Tween.EaseType.Out)
-            .SetTrans(Tween.TransitionType.Cubic);
-
         // Ensure back button is visible when switching between controller/mouse, etc.
         Callable.From(InputTypeChanged).CallDeferred();
+
+        WaitForLayoutAndFadeIn();
+    }
+
+    private async void WaitForLayoutAndFadeIn()
+    {
+        // Wait for the layout: one frame is USUALLY but not always enough to avoid jerking.
+        // try/catch due to async void.
+        try
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+            _leftScrollArea.ScrollToFocusedControl(skipAnimation: true);
+
+            _fadeInTween?.Kill();
+            _fadeInTween = CreateTween().SetParallel();
+            _fadeInTween.TweenProperty(_contentPanel, "modulate", Colors.White, 0.5f)
+                .From(new Color(0, 0, 0, 0))
+                .SetEase(Tween.EaseType.Out)
+                .SetTrans(Tween.TransitionType.Cubic);
+        }
+        catch (Exception)
+        {
+            // ignored
+        }
     }
 
     protected override void OnSubmenuHidden()

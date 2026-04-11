@@ -355,9 +355,10 @@ public class SimpleModConfig : ModConfig
 
         }
 
-        // Ensure the final state is correct for header visibility: the final visibility isn't known until the section
+        // Ensure the final state is correct for visibility: the final visibility isn't known until the section
         // has been fully built.
         sections.UpdateAllHeaderVisibility();
+        dividers.UpdateAll();
     }
 
     private static void SetupFocusNeighbors(Control? previousSetting, Control currentSetting)
